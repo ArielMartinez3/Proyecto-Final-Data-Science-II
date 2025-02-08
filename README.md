@@ -1,9 +1,9 @@
-# README: Insight de Ingresos: Predicción Datos Censales con ML
+# README: Insight de Ingresos: Predicción con Datos Censales con ML
 
 ## Introducción
 Este proyecto tiene como objetivo analizar la relación entre el nivel educativo, la ocupación, las horas trabajadas y los ingresos. Se buscará responder a preguntas clave sobre la distribución de ingresos y cómo se ven influenciados por diferentes factores socioeconómicos.
 
-## Abstracto
+## Abstract
 El “Adult” dataset, también conocido como “Census Income” dataset, es una colección de datos del censo que se utiliza para predecir si el ingreso de una persona supera los $50,000 dólares americanos al año. Este dataset contiene 48,842 instancias y 14 características, incluyendo edad, educación, ocupación, y horas trabajadas por semana. El objetivo de este proyecto es explorar y visualizar los datos para identificar patrones y relaciones que puedan ayudar a responder preguntas específicas sobre los factores que influyen en los ingresos de las personas. A través de visualizaciones univariadas, bivariadas y multivariadas, junto con resúmenes numéricos, se buscará proporcionar una comprensión profunda de las variables más influyentes en la determinación de los ingresos.
 
 ## Dataset
@@ -204,10 +204,56 @@ La mayoría de las variables presentan una correlación débil con la variable o
 #### Chi-cuadrado
 El test de Chi-cuadrado se utiliza para evaluar la independencia entre las variables categóricas. Todos los p-values obtenidos son extremadamente bajos, lo que indica que todas las variables tienen una relación significativa con la predicción de los ingresos. Esto refuerza la idea de que cada variable aporta información valiosa para explicar las diferencias en los niveles de ingresos, aunque con diferentes grados de influencia. A pesar de la presencia de valores outliers, se decidió mantenerlos en el análisis, dado su potencial impacto para el análisis del modelo de ML.
 
+#### RFE (Recursive Feature Elimination)
+A través de la selección de variables con RFE, se obtuvo una precisión del modelo del 78.00%. Las variables seleccionadas parecen ser relevantes para el modelo, destacándose la importancia de características como education, age y hours_per_week en la predicción de ingresos.
 
-# Resultados parciales obtenidos e implementación de los mismos en un contexto comercial
+#### Importancia de Variables según Random Forest
+Los resultados del modelo de Random Forest indican que las variables más importantes son: fnlwgt (0.1636), age (0.1523), capital_gain (0.1128), relationship (0.1060), y education_num (0.0911), entre otras. Esto sugiere que ciertas variables tienen un impacto considerable en la predicción de ingresos.
 
- El análisis de este dataset permite obtener resultados a distintos niveles de profundidad, revelando patrones que pueden informar decisiones estratégicas en políticas públicas, optimización de recursos en el mercado laboral y estrategias de desarrollo personal para los individuos en búsqueda de empleo.  
+#### ANOVA
+En el análisis de varianza (ANOVA), las variables con p-value igual a 0, como age, education_num, relationship, sex, capital_gain, hours_per_week, marital_status y capital_loss, son estadísticamente significativas para predecir la variable objetivo. Otras variables, como education, occupation, race, workclass y native_country, presentan p-values menores a 0.05, lo que sugiere que también son significativas, aunque menos influyentes. Sin embargo, fnlwgt tiene un p-value de 0.0877, lo que indica que no es estadísticamente significativa al nivel de confianza del 95%.
+
+#### Validación Cruzada (Con y Sin fnlwgt)
+Debido a este resultado obtenido, se realizó una validación cruzada para evaluar la importancia de fnlwgt en el modelo. Con fnlwgt, la precisión promedio fue de 0.8243, mientras que sin esta variable fue de 0.8247. La inclusión de fnlwgt aporta una ligera mejora en la precisión del grupo minoritario (ingresos mayores a 50K), sugiriendo su valor en contextos específicos. La conclusión que obtenemos es que fnlwgt puede estar capturando interacciones complejas entre variables que ANOVA, al ser una técnica lineal, no puede detectar. En algunos modelos más complejos (como Random Forest), una variable puede ser importante por las interacciones que permite, pero no necesariamente tiene una fuerte relación directa con la variable objetivo.
+
+#### SMOTE
+La técnica SMOTE no mejoró el rendimiento del modelo y, en algunos casos, afectó negativamente la recall. Por lo tanto, se recomienda omitir esta técnica en el modelo final.
+
+#### Random Forest con Ajuste de Umbral
+Finalmente, al aplicar un ajuste de umbral en el modelo de Random Forest, se observó una mejora en la precisión para la clase 0, pero una disminución en el rendimiento para la clase 1. Esto sugiere que, aunque se logró un mejor balance entre las clases, esto fue a costa de la precisión general.
+
+## Entrenamiento de Modelos - XGBoost y LightGBM
+Optamos por entrenar los datos con los algoritmos XGBoost y LightGBM, debido a su capacidad para manejar grandes cantidades de datos, su rendimiento computacional eficiente y su habilidad para capturar relaciones complejas. Elegimos estos algoritmos después de probar otros modelos (Regresión Logística, Random Forest, KNN, SVM, AdaBoost, Decision Tree, Gradient Boosting) para comparar su desempeño y elegir el más adecuado, pero XGBoost y LightGBM ofrecieron mejores resultados en términos de precisión.
+
+Con XGBoost, obtuvimos una precisión de aproximadamente 85%, mientras que LightGBM logró un 87%. Estos algoritmos son óptimos para este tipo de problemas, demostrando su capacidad para manejar relaciones no lineales y conjuntos de datos grandes.
+
+## Optimización de Parámetros - GridSearchCV
+Para maximizar el rendimiento de los modelos, utilizamos GridSearchCV, una técnica de optimización de hiperparámetros que evalúa múltiples combinaciones de parámetros para encontrar la configuración ideal. Esto asegura que los modelos funcionen con los parámetros más adecuados para el conjunto de datos específico.
+
+Con la optimización de parámetros, tanto XGBoost como LightGBM mostraron mejoras en precisión y recall, lo que indica un ajuste fino del modelo. La mejor combinación de hiperparámetros permitió que el modelo de LightGBM lograra su mejor desempeño, con una precisión final del 88%.
+
+### Resultados obtenidos
+* Al determinar que education_num, age, y hours_per_week poseen una relación fuerte con la variante objetivo, probamos segmentando las mismas para ver si mejora la precisión del modelo.
+* En muchos segmentos, especialmente aquellos con educación baja y horas extremas de trabajo (0-20 y 61-100 horas), se observa un fuerte desbalance de clases. Esto provoca que el modelo solo se enfoque en predecir correctamente la clase dominante (ingresos bajos), ignorando por completo a los individuos con ingresos altos, lo que se refleja en F1-scores bajos o inexistentes para la clase '>50K'.
+* Educación y horas trabajadas influyen notablemente en el desempeño: Los segmentos con más horas de trabajo (21-40) y más años de educación (13-16) muestran mejor desempeño en la predicción de ingresos mayores a $50K. Por el contrario, aquellos con menos educación o en extremos de horas trabajadas tienden a sufrir de desbalance en el modelo.
+* Muestras pequeñas impactan el desempeño: En segmentos pequeños, como 61-100 horas trabajadas o niveles educativos bajos, el modelo tiene dificultades para generalizar, lo que se traduce en predicciones poco fiables, especialmente para la clase con menos representación.
+
+Por lo que llegamos a la conclusión de que es preferible no segmentar el dataset.
+Utilizamos los modelos que mejores resultados mostraron, aplicamos GridSearchCV y RandomizedSearchCV para ajustar los hiperparámetros de los modelos LightGBM y XGBoost, 
+
+## Evaluación del Modelo y Métricas
+Creamos un Reporte de clasificación para evaluar la performance de los modelos, con parámetros como precisión (accuracy), recall, y F1-score. También generamos matrices de confusión para analizar el rendimiento del modelo en términos de falsos positivos y falsos negativos. Finalmente añadimos un gráfico de comparación de valores reales y predicciones, y una curva ROC para ambos modelos Estas métricas son clave para determinar la efectividad de los modelos en la predicción de ingresos, y comparar su eficacia en varios aspectos a la hora de realizar la predicción. (En nuestro caso realizamos varias evaluaciones debido a la ligera dificultad que presentaban todos los modelos para precedir casos del grupo minoritario)
+
+Los resultados mostraron que LightGBM tenía un mejor balance entre precisión y recall, lo que lo convierte en el modelo más robusto. XGBoost también presentó buenos resultados, pero con una leve caída en el recall. Las métricas de evaluación confirman que LightGBM es el modelo más adecuado para este problema, debido a su capacidad de equilibrar correctamente las predicciones, minimizando tanto falsos positivos como negativos.
+
+## Análisis de la Importancia de Características
+Después de entrenar los modelos, analizamos la importancia de cada característica para determinar cuáles factores tienen mayor influencia en la predicción de ingresos superiores a $50,000. Usamos las herramientas de visualización integradas en XGBoost y LightGBM para obtener un ranking de las variables más influyentes en el modelo que mejores resultados obtuvo. De esta manera, podremos comprobar la veracidad de los insights observados en el EDA, centrándonos en las características mencionadas en las preguntas de investigación ('occupation', 'education', y 'sex').
+
+Las variables más relevantes fueron 'occupation', 'education', y 'hours_per_week', mientras que 'sex' tuvo una influencia baja en ambos modelos. Esto sugiere que factores como el nivel educativo y el tipo de ocupación son más determinantes para predecir altos ingresos. El análisis de la importancia de características confirma que, aunque el género tiene un rol en la predicción de ingresos, las variables relacionadas con la educación, horas trabajadas y ocupación son mucho más influyentes.
+
+# Conclusiones Finales
+* Con base en los resultados obtenidos, concluimos que la combinación de reducción de dimensionalidad, elección de algoritmos avanzados como XGBoost y LightGBM, y optimización de hiperparámetros fue clave para obtener un modelo preciso y eficiente.  
+* El modelo optimizado con LightGBM alcanzó la mejor precisión (88%) y mostró un buen balance en las métricas de evaluación. Los factores más influyentes para predecir ingresos superiores a $50,000 son la edad, el capital ganado y perdido, el nivel educativo, horas trabajadas y la ocupación. El análisis de este dataset permite obtener resultados a distintos niveles de profundidad, revelando patrones que pueden informar decisiones estratégicas en políticas públicas, optimización de recursos en el mercado laboral y estrategias de desarrollo personal para los individuos en búsqueda de empleo.  
 
    * **Políticas Gubernamentales:** Los hallazgos pueden orientar a los gobiernos en el diseño de políticas que fomenten el acceso a educación y capacitación en áreas con mayor potencial de ingresos. Invertir en programas educativos y de formación laboral que se alineen con las ocupaciones que generan mayores ingresos puede contribuir a la equidad económica y reducir la desigualdad en el acceso a oportunidades. 
 
